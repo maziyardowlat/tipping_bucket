@@ -1,5 +1,5 @@
 import streamlit as st
-from modules import format_data, flag_compile, review, report, annual
+from modules import format_data, flag_compile, review, annual
 
 st.set_page_config(page_title="Tipping Bucket QAQC", layout="wide")
 
@@ -33,7 +33,6 @@ pages = {
     "Format Data": format_data.app,
     "Flag & Compile": flag_compile.app,
     "Review Data": review.app,
-    "Generate Report": report.app,
     "Annual Report": annual.app
 }
 

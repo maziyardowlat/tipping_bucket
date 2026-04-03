@@ -233,14 +233,31 @@ def app():
                         raw['air_temp'] = pd.to_numeric(raw['air_temp'], errors='coerce')
                         raw['event'] = pd.to_numeric(raw['event'], errors='coerce')
 
-                        # Parse timestamps (YY-MM-DD or YYYY-MM-DD)
-                        try:
-                            raw['timestamp'] = pd.to_datetime(raw['timestamp'], format='%y-%m-%d %H:%M:%S', errors='raise')
-                        except (ValueError, TypeError):
+                        # Parse timestamps — strip whitespace, drop blanks, then try formats
+                        raw['timestamp'] = raw['timestamp'].astype(str).str.strip()
+                        # Normalize double spaces (HOBO sometimes writes "12:00:00  AM")
+                        raw['timestamp'] = raw['timestamp'].str.replace(r'\s+', ' ', regex=True)
+                        raw = raw[raw['timestamp'].ne('') & raw['timestamp'].ne('nan')].copy()
+
+                        # Try common HOBO timestamp formats in order
+                        ts_formats = [
+                            '%y-%m-%d %H:%M:%S',          # 24-06-26 16:45:00
+                            '%Y-%m-%d %H:%M:%S',          # 2024-06-26 16:45:00
+                            '%m/%d/%y %I:%M:%S %p',       # 07/13/22 12:00:00 AM
+                            '%m/%d/%Y %I:%M:%S %p',       # 07/13/2022 12:00:00 AM
+                            '%m/%d/%y %H:%M:%S',          # 07/13/22 16:45:00
+                            '%m/%d/%Y %H:%M:%S',          # 07/13/2022 16:45:00
+                        ]
+                        parsed = False
+                        for fmt in ts_formats:
                             try:
-                                raw['timestamp'] = pd.to_datetime(raw['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='raise')
+                                raw['timestamp'] = pd.to_datetime(raw['timestamp'], format=fmt, errors='raise')
+                                parsed = True
+                                break
                             except (ValueError, TypeError):
-                                raw['timestamp'] = pd.to_datetime(raw['timestamp'], yearfirst=True, dayfirst=False, errors='coerce')
+                                continue
+                        if not parsed:
+                            raw['timestamp'] = pd.to_datetime(raw['timestamp'], format='mixed', dayfirst=False, errors='coerce')
 
                         raw = raw.dropna(subset=['timestamp'])
                         raw = raw.sort_values('timestamp')

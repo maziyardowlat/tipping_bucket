@@ -7,7 +7,7 @@ import os
 
 
 def app():
-    st.header("Annual Report & Compilation")
+    st.header("Annual Compilation")
 
     # ── 1. Select Files to Compile ──
     st.subheader("1. Select Files to Compile")
@@ -20,7 +20,7 @@ def app():
     selected_files = st.multiselect("Choose files to merge (usually for one station)", all_files)
 
     if selected_files:
-        if st.button("Compile & Generate Annual Report"):
+        if st.button("Compile"):
             dfs = []
             for f in selected_files:
                 d = file_manager.load_data(f, subfolder="01_Data/02_Tidy")

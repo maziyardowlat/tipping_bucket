@@ -137,20 +137,8 @@ def app():
             edited_df = st.data_editor(df[cols_to_show], num_rows="fixed", key="editor")
             df.update(edited_df)
 
-            # ── 4. Notes ──
-            st.subheader("4. QAQC Notes")
-            existing_note = st.session_state.get('qaqc_notes', "")
-            notes = st.text_area("Enter notes for this review session:", value=existing_note)
-            if notes != existing_note:
-                st.info("Notes modified. Will update on save.")
-
-            # ── 5. Save ──
+            # ── 4. Save ──
             if st.button("Save Reviewed Data"):
-                st.session_state['qaqc_notes'] = notes
-
-                if 'qaqc_notes' in df.columns:
-                    df = df.drop(columns=['qaqc_notes'])
-
                 df_to_save = df.copy()
                 if 'precip' in df_to_save.columns:
                     df_to_save['precip'] = df_to_save['precip'].astype(object)
