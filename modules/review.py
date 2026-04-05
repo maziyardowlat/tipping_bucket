@@ -142,10 +142,10 @@ def app():
                 df_to_save = df.copy()
                 if 'precip' in df_to_save.columns:
                     df_to_save['precip'] = df_to_save['precip'].astype(object)
-                    df_to_save['precip'] = df_to_save['precip'].fillna("NAN")
+                    df_to_save['precip'] = df_to_save['precip'].fillna("NAN").infer_objects(copy=False)
                 if 'air_temp' in df_to_save.columns:
                     df_to_save['air_temp'] = df_to_save['air_temp'].astype(object)
-                    df_to_save['air_temp'] = df_to_save['air_temp'].fillna("NAN")
+                    df_to_save['air_temp'] = df_to_save['air_temp'].fillna("NAN").infer_objects(copy=False)
 
                 saved_path = file_manager.save_data(df_to_save, selected_file, subfolder="01_Data/02_Tidy", overwrite=True)
                 st.success(f"Reviewed data saved (overwritten) to {saved_path}")

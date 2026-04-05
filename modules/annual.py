@@ -206,10 +206,10 @@ def app():
                 final_df_to_save = final_df.copy()
                 if 'precip' in final_df_to_save.columns:
                     final_df_to_save['precip'] = final_df_to_save['precip'].astype(object)
-                    final_df_to_save['precip'] = final_df_to_save['precip'].fillna("NAN")
+                    final_df_to_save['precip'] = final_df_to_save['precip'].fillna("NAN").infer_objects(copy=False)
                 if 'air_temp' in final_df_to_save.columns:
                     final_df_to_save['air_temp'] = final_df_to_save['air_temp'].astype(object)
-                    final_df_to_save['air_temp'] = final_df_to_save['air_temp'].fillna("NAN")
+                    final_df_to_save['air_temp'] = final_df_to_save['air_temp'].fillna("NAN").infer_objects(copy=False)
 
                 station = final_df['station_code'].iloc[0] if 'station_code' in final_df.columns else "Unknown"
                 if 'timestamp' in final_df.columns:
