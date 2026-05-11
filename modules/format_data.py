@@ -183,13 +183,18 @@ def app():
             default_temp = find_col(["Temp"]) or (all_columns[1] if len(all_columns) > 1 else all_columns[0])
             default_event = find_col(["Event"]) or (all_columns[2] if len(all_columns) > 2 else all_columns[0])
 
+            NOT_INCLUDED = "(not included)"
+            col_options = [NOT_INCLUDED] + all_columns
+
             col1, col2, col3 = st.columns(3)
             with col1:
                 ts_col = st.selectbox("Timestamp Column", all_columns, index=all_columns.index(default_ts))
             with col2:
-                temp_col = st.selectbox("Air Temperature Column", all_columns, index=all_columns.index(default_temp))
+                default_temp_idx = col_options.index(default_temp) if default_temp in col_options else 0
+                temp_col = st.selectbox("Air Temperature Column", col_options, index=default_temp_idx)
             with col3:
-                event_col = st.selectbox("Event (Cumulative Tips) Column", all_columns, index=all_columns.index(default_event))
+                default_event_idx = col_options.index(default_event) if default_event in col_options else 0
+                event_col = st.selectbox("Event (Cumulative Tips) Column", col_options, index=default_event_idx)
 
             # --- Metadata ---
             st.subheader("Metadata")
@@ -227,8 +232,23 @@ def app():
 
                     with st.spinner("Processing raw data..."):
                         # Parse timestamp
-                        raw = df[[ts_col, temp_col, event_col]].copy()
-                        raw.columns = ['timestamp', 'air_temp', 'event']
+                        cols_to_use = [ts_col]
+                        col_names = ['timestamp']
+
+                        if temp_col != NOT_INCLUDED:
+                            cols_to_use.append(temp_col)
+                            col_names.append('air_temp')
+                        if event_col != NOT_INCLUDED:
+                            cols_to_use.append(event_col)
+                            col_names.append('event')
+
+                        raw = df[cols_to_use].copy()
+                        raw.columns = col_names
+
+                        if temp_col == NOT_INCLUDED:
+                            raw['air_temp'] = np.nan
+                        if event_col == NOT_INCLUDED:
+                            raw['event'] = np.nan
 
                         raw['air_temp'] = pd.to_numeric(raw['air_temp'], errors='coerce')
                         raw['event'] = pd.to_numeric(raw['event'], errors='coerce')
@@ -268,15 +288,21 @@ def app():
                         grid_timestamps = pd.date_range(start=grid_start, end=grid_end, freq='15min')
 
                         # --- Aggregate precipitation ---
-                        event_rows = raw[raw['event'].notna()].copy()
-                        precip_df = aggregate_tips_to_15min(event_rows, grid_timestamps)
+                        if event_col != NOT_INCLUDED:
+                            event_rows = raw[raw['event'].notna()].copy()
+                            precip_df = aggregate_tips_to_15min(event_rows, grid_timestamps)
+                        else:
+                            precip_df = pd.DataFrame({'timestamp': grid_timestamps, 'precip': np.nan})
 
                         # --- Extract temperature (already at 15-min marks) ---
-                        temp_rows = raw[raw['air_temp'].notna()].copy()
-                        temp_rows['timestamp'] = temp_rows['timestamp'].dt.round('15min')
-                        # Keep last value per bin if duplicates
-                        temp_rows = temp_rows.drop_duplicates(subset=['timestamp'], keep='last')
-                        temp_df = temp_rows[['timestamp', 'air_temp']]
+                        if temp_col != NOT_INCLUDED:
+                            temp_rows = raw[raw['air_temp'].notna()].copy()
+                            temp_rows['timestamp'] = temp_rows['timestamp'].dt.round('15min')
+                            # Keep last value per bin if duplicates
+                            temp_rows = temp_rows.drop_duplicates(subset=['timestamp'], keep='last')
+                            temp_df = temp_rows[['timestamp', 'air_temp']]
+                        else:
+                            temp_df = pd.DataFrame({'timestamp': grid_timestamps, 'air_temp': np.nan})
 
                         # --- Merge onto grid ---
                         result = precip_df.merge(temp_df, on='timestamp', how='left')
@@ -297,11 +323,17 @@ def app():
                     # Summary
                     col_s1, col_s2 = st.columns(2)
                     with col_s1:
-                        st.metric("Total Precipitation (mm)", f"{result['precip'].sum():.1f}")
-                        st.metric("Precip Intervals > 0", f"{(result['precip'] > 0).sum()}")
+                        if event_col != NOT_INCLUDED:
+                            st.metric("Total Precipitation (mm)", f"{result['precip'].sum():.1f}")
+                            st.metric("Precip Intervals > 0", f"{(result['precip'] > 0).sum()}")
+                        else:
+                            st.metric("Precipitation", "Not included")
                     with col_s2:
-                        st.metric("Temp Range", f"{result['air_temp'].min():.1f}°C – {result['air_temp'].max():.1f}°C")
-                        st.metric("Missing Temp Rows", f"{result['air_temp'].isna().sum()}")
+                        if temp_col != NOT_INCLUDED:
+                            st.metric("Temp Range", f"{result['air_temp'].min():.1f}°C – {result['air_temp'].max():.1f}°C")
+                            st.metric("Missing Temp Rows", f"{result['air_temp'].isna().sum()}")
+                        else:
+                            st.metric("Air Temperature", "Not included")
 
                     # Extract date from filename for session state
                     raw_date_match = re.search(r'_(\d{8})(?:\.\w+)?$', file_name_for_meta)
